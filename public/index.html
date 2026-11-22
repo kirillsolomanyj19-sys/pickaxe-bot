@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pickaxe Empire — Boost Shop</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1015;
+      --card: #161b24;
+      --card-2: #1d2430;
+      --border: #2a3344;
+      --text: #f3f6fb;
+      --muted: #8f9bb0;
+      --accent: #38bdf8;
+      --gold: #fbbf24;
+      --green: #22c55e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at top, #182234 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 520px; margin: 0 auto; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .title { margin: 0; font-size: 20px; font-weight: 700; }
+    .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .stat-box {
+      background: var(--card-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .stat-label { font-size: 11px; color: var(--muted); }
+    .stat-value { font-size: 16px; font-weight: 700; margin-top: 4px; color: var(--gold); }
+    .claim-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      gap: 12px;
+    }
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #fff;
+      transition: transform 0.08s ease, opacity 0.2s ease;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-claim { background: linear-gradient(135deg, #f59e0b, #d97706); color: #111; }
+    .btn-ton { width: 100%; background: linear-gradient(135deg, #0ea5e9, #2563eb); margin-top: 10px; }
+    .btn-usdt { width: 100%; background: linear-gradient(135deg, #16a34a, #15803d); margin-top: 10px; }
+    .pkg {
+      background: var(--card-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      margin-top: 12px;
+    }
+    .pkg-top { display: flex; justify-content: space-between; align-items: center; }
+    .pkg-name { font-weight: 700; font-size: 15px; }
+    .badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+    }
+    .pkg-desc { font-size: 13px; color: var(--muted); margin-top: 6px; }
+    .status {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      line-height: 1.45;
+      color: #bae6fd;
+      white-space: pre-line;
+    }
+    .wallet-hint {
+      font-size: 11px;
+      color: var(--muted);
+      word-break: break-all;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <h1 class="title">⛏️ Pickaxe Boost</h1>
+        <div id="user-sub" class="sub">Загрузка профиля...</div>
+      </div>
+      <div id="ton-connect-btn"></div>
+    </div>
+
+    <div class="panel">
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">Баланс</div>
+          <div id="tokens-val" class="stat-value">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Множитель</div>
+          <div id="mult-val" class="stat-value">x1</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Скорость</div>
+          <div id="rate-val" class="stat-value">2.0/с</div>
+        </div>
+      </div>
+
+      <div class="claim-row">
+        <div>
+          <div style="font-size: 12px; color: var(--muted);">Добыто в шахте:</div>
+          <div id="unclaimed-val" style="font-size: 16px; font-weight: 700; color: var(--green);">0.00</div>
+        </div>
+        <button id="claim-btn" class="btn btn-claim">Забрать добычу</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="font-weight: 700; font-size: 16px;">Ускорение развития</div>
+      <div class="sub">Оплата через подключённый кошелёк поступает напрямую на кошелёк проекта</div>
+
+      <div class="pkg">
+        <div class="pkg-top">
+          <span class="pkg-name">Starter Pickaxe</span>
+          <span class="badge">1 TON</span>
+        </div>
+        <div class="pkg-desc">+2 500 токенов сразу и множитель добычи <strong>x2</strong></div>
+        <button class="btn btn-ton" data-pkg="starter_ton" data-asset="TON">Оплатить 1 TON</button>
+      </div>
+
+      <div class="pkg">
+        <div class="pkg-top">
+          <span class="pkg-name">Pro Drill USDT</span>
+          <span class="badge" style="background: rgba(34, 197, 94, 0.16); color: #86efac;">5 USDT</span>
+        </div>
+        <div class="pkg-desc">+15 000 токенов сразу и множитель добычи <strong>x5</strong></div>
+        <button class="btn btn-usdt" data-pkg="pro_usdt" data-asset="USDT">Оплатить 5 USDT</button>
+      </div>
+
+      <div class="pkg">
+        <div class="pkg-top">
+          <span class="pkg-name">Titan Rig TON</span>
+          <span class="badge">4.5 TON</span>
+        </div>
+        <div class="pkg-desc">+18 000 токенов сразу и множитель добычи <strong>x6</strong></div>
+        <button class="btn btn-ton" data-pkg="titan_ton" data-asset="TON">Оплатить 4.5 TON</button>
+      </div>
+
+      <div id="status-box" class="status">Подключите кошелёк и выберите пакет буста.</div>
+      <div id="wallet-hint" class="wallet-hint"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Address, beginCell, toNano } from "https://esm.sh/@ton/core@0.56.3";
+
+    // ЗАМЕНИ НА АДРЕС СВОЕГО БЭКЕНДА ПОСЛЕ ЗАПУСКА НА RENDER:
+    const API_BASE_URL = "https://ваш-домен-бэкенда.com";
+    const USDT_JETTON_MASTER = "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"; //
+    const TONAPI_BASE = "https://tonapi.io/v2";
+
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
+
+    const tgUser = tg?.initDataUnsafe?.user;
+    const tgUserId = tgUser?.id || 10001;
+    const tgUsername = tgUser?.username || `player_${tgUserId}`;
+
+    const startParam = tg?.initDataUnsafe?.start_param || new URLSearchParams(window.location.search).get("tgWebAppStartParam") || "";
+    let referrerId = null;
+    if (startParam.startsWith("r_")) {
+      const parsed = Number(startParam.slice(2));
+      if (Number.isInteger(parsed) && parsed > 0) {
+        referrerId = parsed;
+      }
+    }
+
+    document.getElementById("user-sub").textContent = `@${tgUsername} • ID ${tgUserId}`;
+
+    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+      manifestUrl: `${window.location.origin}/tonconnect-manifest.json`,
+      buttonRootId: "ton-connect-btn",
+    });
+
+    const statusBox = document.getElementById("status-box");
+    const walletHint = document.getElementById("wallet-hint");
+    const claimBtn = document.getElementById("claim-btn");
+    const payButtons = Array.from(document.querySelectorAll("[data-pkg]"));
+
+    let state = {
+      tokens: 0,
+      unclaimed_tokens: 0,
+      mining_multiplier: 1,
+      rate_per_sec: 2,
+      wallet: "UQBfYcTB3QStbmeE-uVOVKqz20qPeLSe_lDRPp3UFhs-7KYo",
+    };
+
+    function setStatus(text) {
+      statusBox.textContent = text;
+    }
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function renderStats() {
+      document.getElementById("tokens-val").textContent = Number(state.tokens).toLocaleString("ru-RU");
+      document.getElementById("mult-val").textContent = `x${state.mining_multiplier}`;
+      document.getElementById("rate-val").textContent = `${Number(state.rate_per_sec).toFixed(1)}/с`;
+      document.getElementById("unclaimed-val").textContent = Number(state.unclaimed_tokens).toFixed(2);
+      walletHint.textContent = `Кошелёк получения оплат: ${state.wallet}`;
+    }
+
+    function setBusy(busy) {
+      claimBtn.disabled = busy;
+      payButtons.forEach((b) => (b.disabled = busy));
+    }
+
+    function buildTextCommentCell(comment) {
+      return beginCell().storeUint(0, 32).storeStringTail(comment).endCell();
+    }
+
+    async function getUserUsdtJettonWallet(ownerAddress) {
+      const url = `${TONAPI_BASE}/accounts/${encodeURIComponent(ownerAddress)}/jettons/${encodeURIComponent(USDT_JETTON_MASTER)}`;
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        throw new Error("Не удалось найти ваш USDT Jetton-кошелёк в сети TON.");
+      }
+      const data = await resp.json();
+      const jettonWalletAddr = data?.wallet_address?.address;
+      if (!jettonWalletAddr) {
+        throw new Error("На подключённом кошельке нет активированного USDT Jetton-кошелька.");
+      }
+      return Address.parse(jettonWalletAddr).toString();
+    }
+
+    function buildJettonTransferPayload({ amountUsdtUnits, destinationAddr, responseAddr, memo }) {
+      const forwardPayload = buildTextCommentCell(memo);
+      const body = beginCell()
+        .storeUint(0xf8a7ea5, 32)
+        .storeUint(0, 64)
+        .storeCoins(amountUsdtUnits)
+        .storeAddress(Address.parse(destinationAddr))
+        .storeAddress(Address.parse(responseAddr))
+        .storeBit(false)
+        .storeCoins(toNano("0.01"))
+        .storeBit(true)
+        .storeRef(forwardPayload)
+        .endCell();
+
+      return body.toBoc().toString("base64");
+    }
+
+    async function loadSession() {
+      const resp = await fetch(`${API_BASE_URL}/api/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: tgUserId,
+          username: tgUsername,
+          referrer_id: referrerId,
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        state = { ...state, ...data.user, wallet: data.wallet };
+        renderStats();
+      }
+    }
+
+    claimBtn.addEventListener("click", async () => {
+      setBusy(true);
+      try {
+        const resp = await fetch(`${API_BASE_URL}/api/claim`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: tgUserId }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || "Ошибка клейма");
+        state = { ...state, ...data.user };
+        renderStats();
+        setStatus(`⛏️ Забрано в баланс: +${data.claimed} токенов!`);
+      } catch (err) {
+        setStatus(`❌ ${err.message}`);
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    async function createOrder(packageId) {
+      const resp = await fetch(`${API_BASE_URL}/api/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: tgUserId, package_id: packageId }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || "Не удалось создать заказ");
+      return data;
+    }
+
+    async function verifyOrder(orderId) {
+      for (let i = 1; i <= 8; i++) {
+        setStatus(`Проверяем поступление средств в сети TON (${i}/8)...`);
+        await sleep(3000);
+        const resp = await fetch(`${API_BASE_URL}/api/orders/${encodeURIComponent(orderId)}/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: tgUserId }),
+        });
+        if (resp.ok) return await resp.json();
+        if (resp.status !== 404) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.detail || "Ошибка проверки оплаты");
+        }
+      }
+      throw new Error("Транзакция ещё индексируется. Повторите проверку через пару секунд.");
+    }
+
+    payButtons.forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!tonConnectUI.account) {
+          await tonConnectUI.openModal();
+          return;
+        }
+
+        const packageId = btn.dataset.pkg;
+        const asset = btn.dataset.asset;
+
+        setBusy(true);
+        try {
+          setStatus("Создаём заказ и уникальный memo на сервере...");
+          const order = await createOrder(packageId);
+
+          if (asset === "TON") {
+            const payloadBoc = buildTextCommentCell(order.memo).toBoc().toString("base64");
+            setStatus(`Подтвердите перевод ${order.amount} TON в кошельке...`);
+            await tonConnectUI.sendTransaction({
+              validUntil: order.expires_at,
+              messages: [
+                {
+                  address: order.recipient,
+                  amount: toNano(order.amount).toString(),
+                  payload: payloadBoc,
+                },
+              ],
+            });
+          } else if (asset === "USDT") {
+            const senderAddr = tonConnectUI.account.address;
+            setStatus("Получаем ваш USDT-кошелёк...");
+            const jettonWallet = await getUserUsdtJettonWallet(senderAddr);
+            const usdtUnits = BigInt(Math.round(Number(order.amount) * 1_000_000));
+            const jettonPayload = buildJettonTransferPayload({
+              amountUsdtUnits: usdtUnits,
+              destinationAddr: order.recipient,
+              responseAddr: senderAddr,
+              memo: order.memo,
+            });
+
+            setStatus(`Подтвердите перевод ${order.amount} USDT в кошельке...`);
+            await tonConnectUI.sendTransaction({
+              validUntil: order.expires_at,
+              messages: [
+                {
+                  address: jettonWallet,
+                  amount: toNano("0.06").toString(),
+                  payload: jettonPayload,
+                },
+              ],
+            });
+          }
+
+          const result = await verifyOrder(order.order_id);
+          state = { ...state, ...result.user };
+          renderStats();
+          setStatus(
+            `✅ Оплата подтверждена! Начислено +${result.credited.tokens} токенов, множитель x${result.credited.mining_multiplier}.`
+          );
+        } catch (err) {
+          setStatus(`❌ ${err.message || "Оплата отменена"}`);
+        } finally {
+          setBusy(false);
+        }
+      });
+    });
+
+    setInterval(() => {
+      state.unclaimed_tokens = Number((Number(state.unclaimed_tokens) + Number(state.rate_per_sec) * 0.5).toFixed(2));
+      document.getElementById("unclaimed-val").textContent = state.unclaimed_tokens.toFixed(2);
+    }, 500);
+
+    await loadSession();
+  </script>
+</body>
+</html>
